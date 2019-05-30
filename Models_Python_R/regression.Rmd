@@ -1,0 +1,114 @@
+---
+title: "regression"
+author: "VAZGEN TADEVOSYAN"
+date: "April 26, 2019"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(ggcorrplot)
+library(dplyr)
+Data<-read.csv("zz.csv")
+
+only_num<-dplyr::select_if(Data, is.numeric)
+ggcorrplot(cor(only_num), hc.order = TRUE, type = "lower",
+   lab = TRUE)##first plot. 
+
+
+only_num$Engine_Volume<-NULL
+ggcorrplot(cor(only_num), hc.order = TRUE, type = "lower", 
+   lab = TRUE)##second plot.
+
+```
+<br>
+**The plot  states two most correlated numeric variables with "Price"  are variables "Horsepower"  and "Engine Volume".The  plot was also  used to get all correlations to make assumption about multycolineary for further modeling.If we state threshold for correlation = 0.8, variables that are  correlated with each other  are "Horsepower", "Engine Volume" and "Engine Cylinders".  we should exclude necessary ones to handle multicolineary problem , in further model we will include  Horsepower  because it has stronger correlation with Price than others.**
+
+
+```{r}
+only_num$Engine_Volume<-NULL
+ggcorrplot(cor(only_num), hc.order = TRUE, type = "lower",
+   lab = TRUE)
+```
+** After excluding Engine Valume variable we do not have pairs that have stronger correlation than our treshold.**
+
+
+```{r}
+library(nortest)
+data<-read.csv("final2.csv")
+ad.test(data$price)
+
+shapiro.test(Data[Data$sold=="Yes","price"])
+var.test(Data[Data$sold=="Yes","price"], y = Data[Data$sold=="No","price"])
+t.test(Data[Data$sold=="Yes","price"], y = Data[Data$sold=="No","price"],alternative = "greater",var.equal = F,
+       conf.level = 0.95)
+wilcox.test(data[data$sold=="Yes","price"], y = data[Data$sold=="No","price"],alternative = "greater")
+```
+Before building a model it is interesting to compare whether the price is  significantly different by sold and unsold cars. We need statistical tool to estimate if the difference between means or medians is significant enough to claim that two treatments are giving different results in terms of the strenght.As our numeric variable is not normally distributed (see above in point ..) I will conduct wilcox.test which is non-parametric statistical hypothesis test and compares median of two samples. 
+So
+$$H_0 :The\  median\ of\ price \ are\ the \ same\ for \ two\ grous\  med(sold)= med(unsold)$$
+$$H_1 :The\  median \ of \ price \ are\ not \ the \ same\ for \ two\ grous\  med(sold)\neq med(unsold)$$
+As $p_{value} <\alpha:$
+ We reject $H_0$ and we can claim that price of sold cars are less than unsold ones.
+
+
+
+```{r}
+Data$model <- factor(paste(Data$brand,Data$model))
+Data$model<-relevel(Data$model,ref = 'Mercedes-Benz E 320 ')
+set.seed(1)
+index<-sample(nrow(Data),nrow(Data)*.75,replace = F)
+train<-Data[index,]#split done 
+test<-Data[-index,]#
+
+```
+
+
+ 0.9273,	Adjusted R-squared:  0.9256
+ 0.9282,	Adjusted R-squared:  0.9265
+ 0.9266,	Adjusted R-squared:  0.9249 
+```{r}
+options(scipen = 999,max.print = 100000)
+
+colnames(Data)
+str(Data)
+colnames(Data)
+model<-lm(log(price)~model+year+Horsepower+Hand_Drive+Engine_Cylinders+Engine+Interior_Color
+          +log(Mileage)+Gearbox+Drive_train,data = Data)
+
+summary(model)
+z<-summary(model)
+summary_dt<-data.frame(coef=z$coefficients[,1],standard_error=z$coefficients[,2],T_value=z$coefficients[,3],P_value=z$coefficients[,4])
+write.csv("coeffocents.csv",x=summary_dt)
+
+
+```
+
+
+#R-squared```
+
+
+```{r}
+
+#save(model, file = "my_model1.rda")
+
+
+#load("my_model1.rda")
+
+#library(Metrics)
+#train_mod<-lm(log(price)~model+year+Horsepower+Hand_Drive+Engine_Cylinders+Engine+Interior_Color+log(Mileage)+Gearbox+Drive_train,data = train)
+#test_pred<-exp(predict(train_mod,test))
+#rmse(test$price,test_pred)
+
+```
+
+```{r}
+#load("my_model1.rda")
+#ggplot()+geom_point(aes(model$fitted.values,model$residuals))+geom_abline(intercept = 0,slope = 0,size=2,color='blue')+labs(title="Residuals vs Fitted Values",y="residuals",x='Fitted Values')
+#qqnorm(model$residuals);qqline(model$residuals)
+```
+
+
+
+
+
